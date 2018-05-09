@@ -1,0 +1,589 @@
+kind: Template
+apiVersion: v1
+metadata:
+  name: jaqpot-template
+  annotations:
+    description: Jaqpot components and Service Definition
+    tags: jaqpot,components,algorithms
+labels:
+  template: jaqpot-template
+  app: jaqpot
+
+objects:
+
+- kind: ImageStream
+  apiVersion: v1
+  metadata:
+    name: experimental
+  spec:
+    dockerImageRepository: hub.jaqpot.org/experimental
+  status:
+    dockerImageRepository: hub.jaqpot.org/experimental
+
+- kind: ImageStream
+  apiVersion: v1
+  metadata:
+    name: httk
+  spec:
+    dockerImageRepository: hub.jaqpot.org/httk
+  status:
+    dockerImageRepository: hub.jaqpot.org/httk
+
+- kind: ImageStream
+  apiVersion: v1
+  metadata:
+    name: jaqpot-algorithms
+  spec:
+    dockerImageRepository: hub.jaqpot.org/jaqpot-algorithms
+  status:
+    dockerImageRepository: hub.jaqpot.org/jaqpot-algorithms
+
+- kind: ImageStream
+  apiVersion: v1
+  metadata:
+    name: jaqpot-iltest
+  spec:
+    dockerImageRepository: hub.jaqpot.org/jaqpot-iltest
+  status:
+    dockerImageRepository: hub.jaqpot.org/jaqpot-iltest
+
+- kind: ImageStream
+  apiVersion: v1
+  metadata:
+    name: jaqpot-validation
+  spec:
+    dockerImageRepository: hub.jaqpot.org/jaqpot-validation
+  status:
+    dockerImageRepository: hub.jaqpot.org/jaqpot-validation
+
+- kind: ImageStream
+  apiVersion: v1
+  metadata:
+    name: python-algorithms
+  spec:
+    dockerImageRepository: hub.jaqpot.org/python-algorithms
+  status:
+    dockerImageRepository: hub.jaqpot.org/python-algorithms
+
+- kind: ImageStream
+  apiVersion: v1
+  metadata:
+    name: jaqpot-qprf
+  spec:
+    dockerImageRepository: hub.jaqpot.org/jaqpot-qprf
+  status:
+    dockerImageRepository: hub.jaqpot.org/jaqpot-qprf
+
+- kind: ImageStream
+  apiVersion: v1
+  metadata:
+    name: cluster_ocpu
+  spec:
+    dockerImageRepository: hub.jaqpot.org/cluster_ocpu
+  status:
+    dockerImageRepository: hub.jaqpot.org/cluster_ocpu
+
+- kind: ImageStream
+  apiVersion: v1
+  metadata:
+    name: jaqpot-readacross
+  spec:
+    dockerImageRepository: hub.jaqpot.org/jaqpot-readacross
+  status:
+    dockerImageRepository: hub.jaqpot.org/jaqpot-readacross
+
+- kind: ImageStream
+  apiVersion: v1
+  metadata:
+    labels:
+      app: jaqpot-api
+    name: jaqpot-api
+  spec:
+    dockerImageRepository: hub.jaqpot.org/jaqpot-api
+  status:
+    dockerImageRepository: hub.jaqpot.org/jaqpot-api
+
+- kind: DeploymentConfig
+  apiVersion: v1
+  metadata:
+    name: jaqpot-api
+  spec:
+    strategy:
+      type: Recreate
+      resources: {}
+    triggers:
+    - type: ConfigChange
+    replicas: 1
+    selector:
+      name: jaqpot-api
+    template:
+      metadata:
+        labels:
+          name: jaqpot-api
+      spec:
+        containers:
+        - name: jaqpot-api
+          image: hub.jaqpot.org/jaqpot-api:latest
+          env:
+          - name: JAQPOT_HOST
+            value: api-jaqpot.prod.openrisknet.org
+          - name: JAQPOT_PORT
+            value: '80'
+          - name: JAQPOT_BASE
+            value: /jaqpot/services
+          - name: JAQPOT_CORS_ALLOWORIGIN
+            value: '*'
+          - name: JAQPOT_DB_HOST
+            value: jaqpotdb.jaqpot.svc
+          - name: JAQPOT_DB_PORT
+            value: '27017'
+          - name: JAQPOT_DB_NAME
+            value: test
+          - name: JAQPOT_EXPERIMENTAL_DESIGNS_HOST  
+            value: "http://jaqpot-experimental.jaqpot.svc/"
+          - name: JAQPOT_BASE_ALGORITHMS
+            value: "http://jaqpot-algorithms.jaqpot.svc/"
+          - name: JAQPOT_PYTHON_ALGORITHMS_HOST
+            value: "http://jaqpot-python-algorithms.jaqpot.svc/"
+          - name: JAQPOT_READACROSS
+            value: "http://jaqpot-readacross.jaqpot.svc/"
+          - name: PKSIM_BASE
+            value: "http://147.102.86.129:9999/"
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+        imagePullSecrets:
+        - name: jaqpothub
+          resources: {}
+          terminationMessagePath: "/dev/termination-log"
+          securityContext:
+            capabilities: {}
+            privileged: false
+        restartPolicy: Always
+        dnsPolicy: ClusterFirst
+
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: jaqpot-api
+  spec:
+    ports:
+    - name: jaqpot-api
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+      nodePort: 0
+    selector:
+      name: jaqpot-api
+    type: ClusterIP
+    sessionAffinity: None
+  status:
+    loadBalancer: {}    
+
+- kind: Route
+  apiVersion: v1
+  metadata:
+    name: api
+    annotations: {}
+  spec:
+    to:
+      kind: Service
+      name: jaqpot-api
+    tls:
+      termination: edge
+  status: {}
+  parameters: []
+
+- kind: Deployment
+  apiVersion: apps/v1beta1
+  metadata:
+    name: experimental
+  spec:
+    selector:
+      matchLabels:
+        app: experimental
+    replicas: 1
+    template: 
+      metadata:
+        name: experimental
+        labels:
+          app: experimental
+      spec:
+        containers:
+        - name: experimental
+          image: hub.jaqpot.org/experimental
+          ports:
+          - containerPort: 8004
+        imagePullSecrets:
+        - name: jaqpothub
+
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: experimental
+  spec:
+    selector:
+      app: experimental
+    ports:
+    - protocol: TCP
+      port: 8004
+      targetPort: 8004
+
+- kind: Deployment
+  apiVersion: apps/v1beta1
+  metadata:
+    name: httk
+  spec:
+    selector:
+      matchLabels:
+        app: httk
+    replicas: 1
+    template: 
+      metadata:
+        name: httk
+        labels:
+          app: httk
+      spec:
+        containers:
+        - name: httk
+          image: hub.jaqpot.org/httk:latest
+          ports:
+          - containerPort: 8004
+            imagePullPolicy: Always
+        restartPolicy: Always
+        imagePullSecrets:
+        - name: jaqpothub
+
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: httk
+  spec:
+    selector:
+      app: httk
+    ports:
+    - protocol: TCP
+      port: 8004
+      targetPort: 8004
+
+- kind: Deployment
+  apiVersion: apps/v1beta1
+  metadata:
+    name: clust-ocpu
+  spec:
+    selector:
+      matchLabels:
+        app: jaqpot
+    replicas: 1 
+    template: 
+      metadata:
+        name: jaqpot-clust-ocpu
+        labels:
+          app: jaqpot
+      spec:
+        containers:
+        - name: clust-ocpu
+          image: hub.jaqpot.org/cluster_ocpu:latest
+          ports:
+          - containerPort: 8004
+            imagePullPolicy: Always
+          restartPolicy: Always
+        imagePullSecrets:
+        - name: jaqpothub
+
+- kind: Deployment
+  apiVersion: apps/v1beta1
+  metadata:
+    name: glmnet-deployment
+  spec:
+    selector:
+      matchLabels:
+        app: jaqpot-glmnet-ocpu
+    replicas: 1
+    template:
+      metadata:
+        name: jaqpot-glmnet-ocpu
+        labels:
+          app: jaqpot-glmnet-ocpu
+      spec:
+        containers:
+        - name: jaqpot-jlmnet-ocpu
+          image: hub.jaqpot.org/glmnet_ocpu:latest
+          ports:
+          - containerPort: 8004
+            imagePullPolicy: Always
+          restartPolicy: Always
+        imagePullSecrets:
+        - name: jaqpothub
+
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: jaqpot-glmnet
+  spec:
+    selector:
+      app: jaqpot-glmnet-ocpu
+    ports:
+    - protocol: TCP
+      port: 8004
+      targetPort: 8004
+
+
+- kind: Deployment
+  apiVersion: apps/v1beta1
+  metadata:
+    name: jaqpot-algorithms
+  spec:
+    selector:
+      matchLabels:
+        app: jaqpot-algorithms
+    replicas: 1 
+    template: 
+      metadata:
+        name: jaqpot-algorithms
+        labels:
+          app: jaqpot-algorithms
+      spec:
+        containers:
+        - name: jaqpot-algorithms
+          image: hub.jaqpot.org/jaqpot-algorithms:latest
+          ports:
+          - containerPort: 8080
+            imagePullPolicy: Always
+          restartPolicy: Always
+        imagePullSecrets:
+        - name: jaqpothub
+
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: jaqpot-algorithms
+  spec:
+    selector:
+      app: jaqpot-algorithms
+    ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+
+- kind: Deployment
+  apiVersion: apps/v1beta1
+  metadata:
+    name: interlab-testing
+  spec:
+    selector:
+      matchLabels:
+        app: interlab-testing
+    replicas: 1
+    template:
+      metadata:
+        name: interlab-testing
+        labels:
+          app: interlab-testing
+      spec:
+        containers:
+        - name: interlab-testing
+          image: hub.jaqpot.org/jaqpot-iltest:latest
+          ports:
+          - containerPort: 5000
+            imagePullPolicy: Always
+          restartPolicy: Always
+        imagePullSecrets:
+        - name: jaqpothub
+
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: interlab-testing
+  spec:
+    selector:
+      app: interlab-testing
+    ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+
+- kind: Deployment
+  apiVersion: apps/v1beta1
+  metadata:
+    name: python-algorithms-deployment
+  spec:
+    selector:
+      matchLabels:
+        app: jaqpot-python-algorithms
+    replicas: 1
+    template:
+      metadata:
+        name: jaqpot-python-algorithms
+        labels:
+          app: jaqpot-python-algorithms
+      spec:
+        containers:
+        - name: jaqpot-python-algorithms
+          image: hub.jaqpot.org/python-algorithms:latest
+          ports:
+          - containerPort: 5000
+            imagePullPolicy: Always
+          restartPolicy: Always
+        imagePullSecrets:
+        - name: jaqpothub
+
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: jaqpot-python-algorithms
+  spec:
+    selector:
+      app: jaqpot-python-algorithms
+    ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+
+- kind: Deployment
+  apiVersion: apps/v1beta1
+  metadata:
+    name: jaqpot-qprf-deployment
+  spec:
+    selector:
+      matchLabels:
+        app: jaqpot-qprf-app
+    replicas: 1
+    template:
+      metadata:
+        name: jaqpot-qprf-app
+        labels:
+          app: jaqpot-qprf-app
+      spec:
+        containers:
+        - name: jaqpot-qprf-app
+          image: hub.jaqpot.org/jaqpot-qprf:latest
+          ports:
+          - containerPort: 5000
+            imagePullPolicy: Always
+          restartPolicy: Always
+        imagePullSecrets:
+        - name: jaqpothub
+
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: jaqpot-qprf
+  spec:
+    selector:
+      app: jaqpot-qprf-app
+    ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+
+- kind: Deployment
+  apiVersion: apps/v1beta1
+  metadata:
+    name: jaqpot-readacross-deployment
+  spec:
+    selector:
+      matchLabels:
+        app: jaqpot-readacross
+    replicas: 1
+    template:
+      metadata:
+        name: jaqpot-readacross
+        labels:
+          app: jaqpot-readacross
+      spec:
+        containers:
+        - name: jaqpot-readacross
+          image: hub.jaqpot.org/jaqpot-readacross:latest
+          ports:
+          - containerPort: 5000
+            imagePullPolicy: Always
+          restartPolicy: Always
+        imagePullSecrets:
+        - name: jaqpothub
+
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: jaqpot-readacross
+  spec:
+    selector:
+      app: jaqpot-readacross
+    ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+
+- kind: Deployment
+  apiVersion: apps/v1beta1
+  metadata:
+    name: jaqpot-validation-deployment
+  spec:
+    selector:
+      matchLabels:
+        app: jaqpot-validation
+    replicas: 1
+    template:
+      metadata:
+        name: jaqpot-validation
+        labels:
+          app: jaqpot-validation
+      spec:
+        containers:
+        - name: jaqpot-validation
+          image: hub.jaqpot.org/jaqpot-validation:latest
+          ports:
+          - containerPort: 5000
+            imagePullPolicy: Always
+          restartPolicy: Always
+        imagePullSecrets:
+        - name: jaqpothub
+
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: jaqpot-validation
+  spec:
+    selector:
+      app: jaqpot-validation
+    ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+
+- kind: Deployment
+  apiVersion: apps/v1beta1
+  metadata:
+    name: jaqpot-plm-deployment
+  spec:
+    selector:
+      matchLabels:
+        app: jaqpot-plm
+    replicas: 1
+    template:
+      metadata:
+        name: jaqpot-plm
+        labels:
+          app: jaqpot-plm
+      spec:
+        containers:
+        - name: jaqpot-plm
+          image: hub.jaqpot.org/plm_ocpu:latest
+          ports:
+          - containerPort: 8004
+            imagePullPolicy: Always
+          restartPolicy: Always
+        imagePullSecrets:
+        - name: jaqpothub
+
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: jaqpot-plm
+  spec:
+    selector:
+      app: jaqpot-plm
+    ports:
+    - protocol: TCP
+      port: 8004
+      targetPort: 8004

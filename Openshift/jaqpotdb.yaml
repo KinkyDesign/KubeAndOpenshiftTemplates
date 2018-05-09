@@ -1,0 +1,55 @@
+kind: Template
+apiVersion: v1
+metadata:
+  name: jaqpotdb
+  annotations:
+    description: Jaqpot db and Service Definition
+    tags: jaqpot,database,mongo
+labels:
+  template: jaqpot-db
+  app: jaqpot-db
+
+objects:
+
+- kind: Deployment
+  apiVersion: apps/v1beta1
+  metadata:
+    name: jaqpotdb
+  spec:
+    selector:
+      matchLabels:
+        app: jaqpotdb
+    replicas: 1
+    template: 
+      metadata:
+        name: jaqpot-database
+        labels:
+          app: jaqpotdb
+      spec:
+        containers:
+        - name: jaqpot-database
+          image: mongo:3.4
+          ports:
+          - containerPort: 27017
+        volumeMounts:
+          - name: jaqpot-vol
+            mountPath: /data/db
+  volumes:
+      name: jaqpot-vol
+      persistentVolumeClaim:
+        claimName: jaqpot-db-claim
+
+
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: jaqpotdb
+    labels:
+      name: jaqpotdb
+  spec:
+    selector:
+      app: jaqpotdb
+    ports:
+    - port: 27017
+      targetPort: 27017
+    clusterIP: None
